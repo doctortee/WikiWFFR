@@ -1,6 +1,6 @@
 import collections
 import slpp
-
+import pickle
 
 
 
@@ -13,7 +13,7 @@ class ModUtils():
 	# blacklistAttribut = ["Image", "Traits", "WeaponAugment", "WarframeAugment", "NameEN", "Name", "Link", "Family",
 	#                      "Stance", "Set", "Archived", "Link"]
 	# Je laisse ça, en attendant
-	whitelistAttributs = ['PvP', 'Introduced', 'Transmutable'] # 'Rarity', 'Polarity',
+	whitelistAttributs = ['PvP', 'Introduced', 'Transmutable']  # 'Rarity', 'Polarity'
 	# Traduction de la rareté
 	rarityTraduction = {}
 	rarityTraduction["Uncommon/Rare"] = "Rare"  # Cas particulier de "Focus Critique" (erreur du wiki EN)
@@ -113,6 +113,9 @@ class ModUtils():
 					newEntree[attribut] = entreeEN[attribut]  # On met à jour sa valeur
 			else:  # Si l'attribut n'existe pas sur la version française
 				newEntree[attribut] = entreeEN[attribut]  # J'ajoute l'attribut et sa valeur dans la version française
+		if 'Transmutable' in newEntree:
+			if newEntree['Transmutable']:
+				newEntree.pop('Transmutable', None)
 		return newEntree
 
 	def parcoursEN(self, fileName):
@@ -131,26 +134,15 @@ class ModUtils():
 				nomModFR = nomModFR[0] # On suppose qu'il n'y en a qu'un seul
 				modActuelFR = self.getModFR(nomModFR) # On récupère la version FR du mod
 				self.nouvelleListe[nomModFR] = self.traductionAttributs(modActuelFR, modActuelEN)
-				# self.nouvelleListe[nomModFR] = modActuelFR # On s'en sert comme base, et on met à jour ses attributs
-				# for attribut in modActuelEN.keys():  # Pour chaque attribut anglais du mod (EN)
-				# 	if attribut not in self.nouvelleListe[nomModFR]:  # Si l'attribut n'existe pas sur la version française
-				# 		self.nouvelleListe[nomModFR][attribut] = modActuelEN[attribut]  # J'ajoute l'attribut et sa valeur dans la version française
-				# 	else:  # Si cet attribut existe déjà sur la version française
-				#
-				# 		if attribut == "Polarity":
-				# 			if modActuelEN[attribut] in self.polarityTraduction:
-				# 				self.nouvelleListe[nomModFR][attribut] = self.polarityTraduction[modActuelEN[attribut]]
-				# 			else:
-				# 				self.nouvelleListe[nomModFR][attribut] = modActuelEN[attribut]  # On met à jour sa valeur
-				# 		if attribut == "Rarity":
-				# 			if modActuelEN[attribut] in self.rarityTraduction:
-				# 				self.nouvelleListe[nomModFR][attribut] = self.rarityTraduction[modActuelEN[attribut]]
-				# 			else:
-				# 				self.nouvelleListe[nomModFR][attribut] = modActuelEN[attribut]  # On met à jour sa valeur
-				# 		elif attribut in self.whitelistAttributs:  # Si cet attribut est whitelisté (autorisé à etre mis à jour)
-				# 			self.nouvelleListe[nomModFR][attribut] = modActuelEN[attribut]  # On met à jour sa valeur
-				# 		else:
-				# 			pass
+				if 'Transmutable' in self.nouvelleListe[nomModFR]:
+					if self.nouvelleListe[nomModFR]['Transmutable']:
+						print("Transmutable 1 : {}".format(nomModFR))
+						if 'Transmutable' in modActuelFR:
+							if modActuelFR['Transmutable']:
+								print("Transmutable FR")
+						if 'Transmutable' in modActuelEN:
+							if modActuelEN['Transmutable']:
+								print("Transmutable EN")
 			else: # Si ce mod n'existe pas encore dans la base de données FR
 				self.classementMods["ajoutesEN"].append(nomModEN_clean) # On classe ce mod dans la catégorie "ajoutes via le wiki EN"
 				newMod = modActuelEN # On ajoute le mod anglais dans la base FR
@@ -160,7 +152,7 @@ class ModUtils():
 				else:
 					newMod['NameEN'] = newMod['Name']  # On change son nom en nom EN
 				newMod['Name'] = "" # On retire son nom (pour indiquer qu'il n'est pas traduit)
-				self.nouvelleListe[nomModEN_clean] = self.traductionAttributs(newMod, newMod)
+				self.nouvelleListe[nomModEN_clean] = self.traductionAttributs(newMod, modActuelEN)
 
 	def listeAttributs(self):
 		attrList = set()
@@ -205,18 +197,22 @@ class ModUtils():
 		with open(fileName, "w") as file:
 			file.write(slpp.slpp.encode(temp))
 
+	def saveENFRAssociation(self, filename):
+		with open(filename, "wb") as file:
+			pickle.dump(self.associationENFR, file)
+
 
 
 if __name__ == '__main__':
 	modUtils = ModUtils()
-	modUtils.parcoursFR("datas/modsData_light.lua")
+	modUtils.parcoursFR("datas/modsDB_FR_light.lua")
 	# modUtils.listeAttributs()
 	# modUtils.analyseAttributs("Rarity")
 	# modUtils.getModsWithAttributs("Rarity", "N/A")
 	# modUtils.analyseAttributs("Polarity")
-	modUtils.parcoursEN("datas/modsData_en_light.lua")
+	modUtils.parcoursEN("datas/modsDB_EN_light.lua")
 	#print(modUtils.getNewTable())
-	modUtils.saveNewTable("modsData_newFR_light.lua")
+	modUtils.saveNewTable("modsDB_new_FR.lua")
 	classement = modUtils.getClassement()
 	print("Mods non traduits :")
 	print(classement["nontraduits"])
@@ -230,8 +226,9 @@ if __name__ == '__main__':
 	print(classement["erreurTraduction"])
 	print("Mods n'ayant pas de nom anglais (si vous voyez des mods listés ci-dessous, ce n'est pas normal)")
 	print(classement["sansNomEN"])
-	# modUtils.analyseAttributs("Polarity")
-	# modUtils.analyseAttributs("Rarity")
+	modUtils.analyseAttributs("Polarity")
+	modUtils.analyseAttributs("Rarity")
 	# modUtils.getModsWithAttributs("Rarity", "N/A")
+	modUtils.saveENFRAssociation("traductionENFR.dat")
 
 

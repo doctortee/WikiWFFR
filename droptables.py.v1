@@ -1,0 +1,123 @@
+import slpp
+import pickle
+from copy import deepcopy
+
+#Root
+#|-Missions
+#  |_<list elem>
+#     |-Type str
+#     |-Tier ?
+#     |-Ignore ?
+#     |-Rewards dict
+#        |_ "" / "A" / "B" / "C" dict
+#           |_ <list elem>
+#               |_<list elem> => Objet;Type;Rate[;Amount]
+#     |-Alias ?
+#     |-Name ?
+#     |_ShortName ?
+#|-Syndicates
+#|_Ennemies
+
+class DropTableUtils():
+	associationENFR = {}
+	result = {}
+
+	def init(self):
+		pass
+
+	def loadENFRAssociation(self, filename):
+		with open(filename, "rb") as file:
+			self.associationENFR = pickle.load(file)
+
+	def parcoursFR(self, fileName):
+		with open(fileName, "r") as file:
+			test = file.read()
+			tree = slpp.slpp.decode(test)
+			self.result = tree
+		# self.saveResult("temp.lua")
+
+		self.parcoursMission(self.result['Missions'])
+		self.parcoursSyndicate(self.result['Syndicates'])
+		self.parcoursEnemy(self.result['Enemies'])
+
+	def getClasseList(self, fileName):
+		with open(fileName, "r") as file:
+			test = file.read()
+			tree = slpp.slpp.decode(test)
+
+		for classe in tree:
+			print(classe)
+
+	def getClasseAttribList(self, fileName, classe):
+		with open(fileName, "r") as file:
+			test = file.read()
+			tree = slpp.slpp.decode(test)
+		attrSet = set()
+		for elem in tree[classe]:
+			for attr in elem:
+				attrSet.add(attr)
+		print(attrSet)
+
+	def parcoursMission(self, tree):
+		# {'Tier', 'Ignore', 'Rewards', 'Alias', 'Name', 'Type', 'ShortName'}
+		compteur = 0
+		for elem in tree:
+			rewards = elem['Rewards']
+			for rotaName in rewards:
+				rota = rewards[rotaName]
+				for item in rota:
+					if item[1] == 'Mod':
+						if item[0] in self.associationENFR:
+							# print("Translated {} into".format(item[0]), end=" ")
+							item[0] = self.associationENFR[item[0]]
+							# print(item[0])
+							compteur += 1
+		print("Le parcours de la section mission a traduit {} mods".format(compteur))
+
+	def parcoursSyndicate(self, tree):
+		# {'Offerings', 'Name'}
+		compteur = 0
+		for elem in tree:
+			rewards = elem['Offerings']
+			for item in rewards:
+				if item[1] == 'Mod':
+					if item[0] in self.associationENFR:
+						# print("Translated {} into".format(item[0]), end=" ")
+						item[0] = self.associationENFR[item[0]]
+						# print(item[0])
+						compteur += 1
+
+		print("Le parcours de la section syndicats a traduit {} mods".format(compteur))
+
+	def parcoursEnemy(self, tree):
+		# {'ModChance', 'Name', 'Ignore', 'Mods'}
+		compteur = 0
+		for elem in tree:
+			rewards = elem['Mods']
+			for item in rewards:
+				if item[0] in self.associationENFR:
+					# print("Translated {} into".format(item[0]), end=" ")
+					item[0] = self.associationENFR[item[0]]
+					# print(item[0])
+					compteur += 1
+
+		print("Le parcours de la section enemy a traduit {} mods".format(compteur))
+
+	def saveResult(self, fileName):
+		with open(fileName, "w") as file:
+			file.write(slpp.slpp.encode(self.result))
+
+
+
+if __name__ == '__main__':
+	dropTableUtils = DropTableUtils()
+	dropTableUtils.loadENFRAssociation("traductionENFR.dat")
+	# dropTableUtils.getClasseList("datas/droptables_fr_light.lua")
+	# Liste des classes : Missions; Syndicates; Enemies
+	# dropTableUtils.getClasseAttribList("datas/droptables_fr_light.lua", "Missions")
+	# dropTableUtils.getClasseAttribList("datas/droptables_fr_light.lua", "Syndicates")
+	# dropTableUtils.getClasseAttribList("datas/droptables_fr_light.lua", "Enemies")
+	dropTableUtils.parcoursFR("datas/droptables_fr_light.lua")
+	dropTableUtils.saveResult("droptables_fr_new.lua")
+
+
